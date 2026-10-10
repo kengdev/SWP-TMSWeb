@@ -1,8 +1,6 @@
+
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Microsoft.IdentityModel.Tokens;
 using Rotativa.AspNetCore;
 using TMSWeb.Models.Entities.HR;
 using TMSWeb.Models.Entities.LOG;
@@ -17,7 +15,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSingleton<IDispatchService, DemoDispatchService>();
+
+builder.Services.AddSingleton<
+    IDispatchService,
+    DemoDispatchService>();
+
 // =====================================================
 // Database
 // =====================================================
@@ -35,192 +37,39 @@ builder.Services.AddDbContext<DbavahrContext>(options =>
 });
 
 // =====================================================
-// SSO Configuration
-// =====================================================
-
-var ssoConfig =
-    builder.Configuration.GetSection("Authentication:Sso");
-
-var authority =
-    ssoConfig["Authority"]
-    ?? throw new InvalidOperationException(
-        "ไม่พบ Authentication:Sso:Authority");
-
-var clientId =
-    ssoConfig["ClientId"]
-    ?? throw new InvalidOperationException(
-        "ไม่พบ Authentication:Sso:ClientId");
-
-var clientSecret =
-    ssoConfig["ClientSecret"]
-    ?? throw new InvalidOperationException(
-        "ไม่พบ Authentication:Sso:ClientSecret");
-
-// =====================================================
-// Authentication
+// Cookie Authentication (ไม่ใช้ SSO)
 // =====================================================
 
 builder.Services
-    .AddAuthentication(options =>
+    .AddAuthentication(
+        CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
     {
-        options.DefaultAuthenticateScheme =
-            CookieAuthenticationDefaults.AuthenticationScheme;
+        // Cookie Name
+        options.Cookie.Name = "TMSWeb.Auth";
 
-        options.DefaultSignInScheme =
-            CookieAuthenticationDefaults.AuthenticationScheme;
+        // Cookie Security
+        options.Cookie.HttpOnly = true;
+        options.Cookie.IsEssential = true;
+        options.Cookie.SecurePolicy =
+            CookieSecurePolicy.Always;
 
-        options.DefaultChallengeScheme =
-            OpenIdConnectDefaults.AuthenticationScheme;
+        options.Cookie.SameSite = SameSiteMode.Lax;
 
-        options.DefaultSignOutScheme =
-            OpenIdConnectDefaults.AuthenticationScheme;
-    })
+        // Login / Logout / Access Denied
+        options.LoginPath = "/Account/Login";
+        options.LogoutPath = "/Account/Logout";
+        options.AccessDeniedPath = "/Account/AccessDenied";
 
-    // =================================================
-    // Cookie
-    // =================================================
+        // Cookie Expiration
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
 
-    .AddCookie(
-        CookieAuthenticationDefaults.AuthenticationScheme,
-        options =>
-        {
-            options.Cookie.Name =
-                "TMSWeb.Auth";
+        // ต่ออายุ Cookie เมื่อใช้งาน
+        options.SlidingExpiration = true;
 
-            options.Cookie.HttpOnly =
-                true;
-
-            options.Cookie.IsEssential =
-                true;
-
-            options.Cookie.SecurePolicy =
-                CookieSecurePolicy.Always;
-
-            options.Cookie.SameSite =
-                SameSiteMode.Lax;
-
-            options.ExpireTimeSpan =
-                TimeSpan.FromHours(8);
-
-            options.SlidingExpiration =
-                true;
-
-            options.AccessDeniedPath =
-                "/account/access-denied";
-        })
-
-    // =================================================
-    // OpenID Connect Client
-    // =================================================
-
-    .AddOpenIdConnect(
-        OpenIdConnectDefaults.AuthenticationScheme,
-        options =>
-        {
-            // =========================================
-            // SSO Server
-            // =========================================
-
-            options.Authority =
-                authority;
-
-            options.ClientId =
-                clientId;
-
-            options.ClientSecret =
-                clientSecret;
-
-            // =========================================
-            // Authorization Code Flow + PKCE
-            // =========================================
-
-            options.ResponseType =
-                OpenIdConnectResponseType.Code;
-
-            options.UsePkce =
-                true;
-
-            // =========================================
-            // Sign In ด้วย Cookie ของ TMS
-            // =========================================
-
-            options.SignInScheme =
-                CookieAuthenticationDefaults
-                    .AuthenticationScheme;
-
-            // =========================================
-            // Save Tokens
-            // =========================================
-
-            options.SaveTokens =
-                true;
-
-            // =========================================
-            // Require HTTPS metadata
-            // =========================================
-
-            options.RequireHttpsMetadata =
-                true;
-
-            // =========================================
-            // Callback URL
-            // =========================================
-
-            options.CallbackPath =
-                "/signin-oidc";
-
-            // =========================================
-            // Logout callback
-            // =========================================
-
-            options.SignedOutCallbackPath =
-                "/signout-callback-oidc";
-
-            options.SignedOutRedirectUri =
-                "/";
-
-            // =========================================
-            // Claims
-            // =========================================
-
-            options.MapInboundClaims =
-                false;
-
-            options.GetClaimsFromUserInfoEndpoint =
-                false;
-
-            // =========================================
-            // Scopes
-            // =========================================
-
-            options.Scope.Clear();
-
-            options.Scope.Add(
-                "openid");
-
-            options.Scope.Add(
-                "profile");
-
-            options.Scope.Add(
-                "email");
-
-            options.Scope.Add(
-                "roles");
-
-            // =========================================
-            // Claim Mapping
-            // =========================================
-
-            options.TokenValidationParameters =
-                new TokenValidationParameters
-                {
-                    NameClaimType =
-                        "name",
-
-                    RoleClaimType =
-                        "role"
-                };
-        });
+        // ReturnUrl
+        options.ReturnUrlParameter = "ReturnUrl";
+    });
 
 // =====================================================
 // Authorization
@@ -250,9 +99,7 @@ var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler(
-        "/Home/Error");
-
+    app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
 
@@ -276,7 +123,6 @@ app.UseRouting();
 
 // =====================================================
 // Authentication
-// ต้องมาก่อน Authorization
 // =====================================================
 
 app.UseAuthentication();
@@ -293,8 +139,7 @@ app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
-    pattern:
-        "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 // =====================================================
 // Rotativa
