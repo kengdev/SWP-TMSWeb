@@ -1,5 +1,1 @@
-Transport
-dotnet ef dbcontext scaffold "Server=Alice\SQLEXPRESS; Database=dbavalog; user=sa; password=keng1112;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -o Models/Entities/LOG -f -v --no-onconfiguring
 
-HR
-dotnet ef dbcontext scaffold "Server=Alice\SQLEXPRESS; Database=dbavahr; user=sa; password=keng1112;TrustServerCertificate=True" Microsoft.EntityFrameworkCore.SqlServer -o Models/Entities/HR -f -v --no-onconfiguring
